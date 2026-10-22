@@ -1,0 +1,16 @@
+5-fold CV accuracy: 0.9541 +/- 0.0041
+Held-out test accuracy: 0.9554
+
+              precision    recall  f1-score   support
+
+  distracted      0.971     0.948     0.959       597
+     fatigue      0.947     0.960     0.953       598
+       focus      0.957     0.952     0.954       603
+    overload      0.948     0.962     0.955       602
+
+    accuracy                          0.955      2400
+   macro avg      0.956     0.955     0.955      2400
+weighted avg      0.956     0.955     0.955      2400
+
+Mean confidence on CORRECT predictions:   0.901
+Mean confidence on INCORRECT predictions: 0.856

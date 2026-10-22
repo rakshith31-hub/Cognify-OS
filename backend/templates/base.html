@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{% block title %}Cognitive Monitor{% endblock %} — Supervision</title>
+<style>
+  :root {
+    --ink: #1E2749; --sub: #5B6584; --accent: #0F9E93; --accent-dk: #0B7C73;
+    --card-bg: #F4F6FA; --code-bg: #1E2749; --code-text: #E7ECF5;
+    --state-focus: #0F9E93; --state-fatigue: #E0A63C; --state-overload: #C9564F;
+    --state-distracted: #7B6FD6; --state-idle: #9AA3BC; --danger: #9A3B3B;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Arial, sans-serif; background: #FFFFFF;
+         color: var(--ink); margin: 0; padding: 2rem 3rem 4rem; }
+  a { color: var(--accent-dk); }
+  h1 { font-size: 1.8rem; margin-bottom: 0.2rem; }
+  h2 { font-size: 1.1rem; color: var(--accent-dk); text-transform: uppercase;
+       letter-spacing: 0.05em; margin: 2.2rem 0 0.8rem; }
+  .sub { color: var(--sub); margin-bottom: 1.5rem; }
+  .topbar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; }
+  .topbar .who { color: var(--sub); font-size: 0.9rem; }
+  .topbar .who a { margin-left: 0.8rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+  th { text-align: left; color: var(--sub); font-weight: 600; padding: 0.4rem 0.6rem;
+       border-bottom: 1px solid #E4E8F2; }
+  td { padding: 0.5rem 0.6rem; border-bottom: 1px solid #F0F2F8; }
+  .card { background: var(--card-bg); border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 0.6rem; }
+  .empty { color: var(--sub); font-style: italic; padding: 0.8rem 0; }
+  .code-box { background: var(--code-bg); color: var(--code-text); border-radius: 10px;
+              padding: 1rem 1.3rem; font-family: Consolas, monospace; font-size: 1.3rem;
+              letter-spacing: 0.15em; display: inline-block; margin: 0.5rem 0 1.2rem; }
+  form.inline { display: inline; }
+  input[type=text], input[type=email], input[type=password] {
+    padding: 0.5rem 0.7rem; border: 1px solid #D5DAE8; border-radius: 6px; font-family: inherit;
+    font-size: 0.95rem; width: 100%; margin-bottom: 0.7rem;
+  }
+  select { padding: 0.5rem 0.7rem; border: 1px solid #D5DAE8; border-radius: 6px; font-family: inherit;
+            margin-bottom: 0.7rem; }
+  button, .btn { background: var(--accent); color: white; border: none; border-radius: 6px;
+                 padding: 0.5rem 1rem; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+  button.danger, .btn.danger { background: var(--danger); }
+  .form-box { max-width: 380px; margin: 2rem auto; background: var(--card-bg); border-radius: 10px;
+              padding: 1.6rem 1.8rem; }
+  .error { background: #F4E4E4; color: var(--danger); padding: 0.6rem 0.9rem; border-radius: 6px;
+           margin-bottom: 1rem; font-size: 0.9rem; }
+  .pill { padding: 0.15rem 0.55rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+  .pill.focus { background: #DFF6F3; color: var(--state-focus); }
+  .pill.fatigue { background: #FCF0DA; color: #93710C; }
+  .pill.overload { background: #F8E1DF; color: var(--state-overload); }
+  .pill.distracted { background: #E9E5FA; color: var(--state-distracted); }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>{% block heading %}Cognitive Monitor{% endblock %}</h1>
+    {% if user %}
+    <div class="who">
+      {{ user.display_name }} ({{ user.role }})
+      {% if user.role == 'teacher' %}<a href="{{ url_for('teacher_home') }}">Students</a>
+      <a href="{{ url_for('teacher_domains') }}">Blocked domains</a>{% endif %}
+      <a href="{{ url_for('logout') }}">Log out</a>
+    </div>
+    {% endif %}
+  </div>
+  {% block content %}{% endblock %}
+</body>
+</html>

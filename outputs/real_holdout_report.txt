@@ -1,0 +1,13 @@
+Real-holdout accuracy: 0.9000
+(20 real test samples, 60 real train samples weighted 5.00x each against 12000 synthetic samples)
+
+              precision    recall  f1-score   support
+
+  distracted      1.000     1.000     1.000         5
+     fatigue      1.000     1.000     1.000         5
+       focus      0.800     0.800     0.800         5
+    overload      0.800     0.800     0.800         5
+
+    accuracy                          0.900        20
+   macro avg      0.900     0.900     0.900        20
+weighted avg      0.900     0.900     0.900        20

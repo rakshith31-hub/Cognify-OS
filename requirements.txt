@@ -1,0 +1,39 @@
+# Core ML
+numpy
+pandas
+scikit-learn
+joblib
+matplotlib
+seaborn
+
+# CNN model (optional — only needed for CNNCognitiveStatePredictor /
+# train_cnn.py; the default RandomForest path doesn't need it)
+torch
+
+# Config / daemon
+pyyaml
+ruamel.yaml  # comment-preserving config edits (setup wizard)
+
+# Local dashboard (localhost-only Flask app)
+flask
+
+# Client for the optional teacher/supervision backend (login/link/upload)
+requests
+
+# Real-time capture — camera path (only needed for --mode full)
+opencv-python
+mediapipe
+
+# Real-time capture — mouse/keyboard (needed for BOTH modes)
+pynput
+
+# Windows desktop notifications: BurntToast (PowerShell module, install
+# separately — see README) is used when available for both plain and
+# actionable notifications. win10toast is intentionally NOT used — it has
+# a long-standing, unfixed threading bug that surfaces when multiple
+# notifications fire close together. A PowerShell balloon-tip fallback
+# (no extra install needed) covers the case where BurntToast isn't set up.
+
+# Windows active-window tracking (app-usage / productivity personalization)
+pywin32; sys_platform == "win32"
+psutil

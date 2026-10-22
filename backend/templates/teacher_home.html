@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block heading %}Your students{% endblock %}
+{% block content %}
+<p class="sub">Share this class code with students. They enter it once via
+   <code>cognitive-monitor link {{ user.class_code }}</code> on their own machine.</p>
+<div class="code-box">{{ user.class_code }}</div>
+
+<h2>Linked students</h2>
+{% if students %}
+<table>
+  <tr><th>Name</th><th>Email</th><th>Sessions</th><th>Last session</th><th></th></tr>
+  {% for s in students %}
+  <tr>
+    <td>{{ s.display_name }}</td>
+    <td>{{ s.email }}</td>
+    <td>{{ s.session_count }}</td>
+    <td>{% if s.last_session_at %}{{ s.last_session_at | timestamp }}{% else %}—{% endif %}</td>
+    <td><a href="{{ url_for('teacher_student_sessions', student_id=s.id) }}">View sessions</a></td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="empty">No students linked yet — share the class code above.</p>
+{% endif %}
+{% endblock %}

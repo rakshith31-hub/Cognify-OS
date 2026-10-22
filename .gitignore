@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.idea/
+.vscode/
+*.egg-info/
+# runtime artefacts (may contain personal activity data)
+logs/*
+!logs/.gitkeep
+*.db
+*.sqlite3
+credentials.json
+.DS_Store

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block heading %}Cognitive Monitor{% endblock %}
+{% block content %}
+<div class="form-box">
+  <h2 style="margin-top:0">Sign up</h2>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  <form method="post">
+    <input type="text" name="display_name" placeholder="Name">
+    <input type="email" name="email" placeholder="Email" required>
+    <input type="password" name="password" placeholder="Password (min 8 characters)" required>
+    <select name="role" required style="width:100%">
+      <option value="">I am a...</option>
+      <option value="teacher">Teacher</option>
+      <option value="student">Student</option>
+    </select>
+    <button type="submit">Create account</button>
+  </form>
+  <p class="sub" style="margin-top:1rem">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+</div>
+{% endblock %}

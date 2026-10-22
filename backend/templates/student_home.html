@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block heading %}Your sessions{% endblock %}
+{% block content %}
+{% if teacher %}
+<p class="sub">Linked to {{ teacher.display_name }} ({{ teacher.email }})</p>
+{% else %}
+<p class="sub">Not linked to a teacher yet — run <code>cognitive-monitor link &lt;class code&gt;</code>
+   on your machine with the code your teacher gives you.</p>
+{% endif %}
+
+{% if sessions %}
+<table>
+  <tr><th>Started</th><th>Duration</th><th>State breakdown</th><th>Blocked-site attempts</th><th>Rating</th></tr>
+  {% for s in sessions %}
+  <tr>
+    <td>{{ s.started_at | timestamp }}</td>
+    <td>{{ ((s.ended_at - s.started_at) / 60) | round(0, 'floor') | int }} min</td>
+    <td>
+      {% for row in s.state_summary %}
+        {% if row.count > 0 %}<span class="pill {{ row.state }}">{{ row.state }} {{ row.pct }}%</span>{% endif %}
+      {% endfor %}
+      {% if s.total_windows == 0 %}<span class="empty">no data</span>{% endif %}
+    </td>
+    <td>
+      {% if s.blocked_summary %}
+        {% for domain, count in s.blocked_summary %}{{ domain }} ({{ count }}){% if not loop.last %}, {% endif %}{% endfor %}
+      {% else %}—{% endif %}
+    </td>
+    <td>{% if s.rating %}{{ s.rating }}/5{% else %}—{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="empty">No sessions uploaded yet. They're sent automatically each time the daemon stops.</p>
+{% endif %}
+{% endblock %}

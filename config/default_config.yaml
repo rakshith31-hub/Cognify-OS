@@ -1,0 +1,297 @@
+# =============================================================================
+# Cognitive State Monitor — action configuration
+# =============================================================================
+# This file controls WHAT the daemon does once it infers your cognitive
+# state. Every default here is tied to a specific finding, cited in
+# docs/RESEARCH_RATIONALE.md. Edit freely — this is meant to be tuned to you.
+
+general:
+  # Which trained model to use. 'rf' (default) = RandomForest, fast, no
+  # torch needed. 'cnn' = the 1D-CNN alone, needs torch, was found to be
+  # MORE fragile to the live pipeline's distribution than RF despite a
+  # marginally higher synthetic-data score (see README). 'ensemble' =
+  # weighted RF+CNN blend, empirically the best of the three on the
+  # harder, more realistic test (src/model/evaluate_ensemble.py) — but
+  # needs torch AND runs both models every tick.
+  model_type: "rf"
+  # Only used when model_type is "ensemble". 0.2 (80% RF / 20% CNN) is
+  # not arbitrary — it's the weight evaluate_ensemble.py found best,
+  # consistently, across two independent large-sample runs. Re-run that
+  # script if the underlying models are ever retrained; the optimal
+  # weight isn't guaranteed to stay the same after that.
+  ensemble_cnn_weight: 0.2
+
+  # How often the model re-predicts (must match the 10s window it was
+  # trained on — don't change this without retraining).
+  predict_interval_seconds: 10
+
+  # An action only fires after the SAME state has been predicted this many
+  # times in a row. This is a debounce/hysteresis guard: cognitive state
+  # windows are noisy, and flipping the UI every 10s would itself become
+  # an interruption (the exact thing we're trying to avoid). Higher =
+  # steadier but slower to react.
+  consecutive_windows_required: 3
+
+  # Minimum seconds between two firings of the SAME action, even if the
+  # state keeps qualifying. Prevents "break reminder" spam every 30s.
+  action_cooldown_seconds: 300
+
+  # Below this confidence, treat the state as "uncertain" and take no
+  # action at all rather than act on a coin-flip. README notes the model's
+  # confidence is meaningfully lower on wrong predictions, so this is a
+  # real signal, not decoration.
+  min_confidence_to_act: 0.55
+
+  # After this many CONSECUTIVE low-confidence windows, revert whatever
+  # state was last committed (turn off DND/brightness dimming/etc) instead
+  # of leaving it active indefinitely. Without this, a genuinely uncertain
+  # period — most commonly the camera not seeing your face because you've
+  # stepped away or turned away from the screen — never confidently
+  # produces a NEW state, so the OLD state's actions just stay stuck on.
+  # At the default predict_interval_seconds=10, 3 windows = ~30s before
+  # reverting.
+  low_confidence_revert_after: 3
+
+  # Idle/away auto-pause: once there's been no mouse/keyboard input AND
+  # no face detected for this many minutes, predictions pause entirely
+  # (no model calls, no actions) instead of feeding neutral-fallback
+  # features into the classifier and getting noisy low-confidence guesses.
+  # Reverts any active state (DND/dimming/etc) immediately on entering
+  # idle, and resumes automatically the instant activity returns. Logged
+  # as its own "idle" entry in state_history.csv, kept separate from the
+  # 4 real states in the dashboard so idle time doesn't dilute your
+  # actual focus/fatigue/overload/distracted percentages.
+  idle_pause_enabled: true
+  idle_pause_after_minutes: 5
+
+  # Per-user calibration for all 14 ML features (not just head pose --
+  # see the head-pose section above for the same idea applied there
+  # first). Learns YOUR OWN baseline per feature over time and adjusts
+  # incoming readings to the equivalent position in the population scale
+  # the trained model actually expects -- NOT naive z-scoring, which
+  # would feed the model data in a different space than it was trained
+  # on. See src/feature_extraction/personal_calibrator.py's docstring for
+  # the exact math. Persists across restarts in
+  # logs/personal_feature_baseline.json and keeps accumulating rather
+  # than recalibrating from scratch each session.
+  personal_calibration_enabled: true
+  personal_calibration_min_windows: 30
+
+  # Real-label collection, closing the synthetic-data gap (see README's
+  # "About the training data" section). Every real (non-idle) tick's raw
+  # features are kept in logs/last_features.json so `cognitive-monitor
+  # label <state>` (or a tap on a notification, see below) works any time
+  # within label_max_age_seconds of a computed window.
+  #
+  # Runs as a bounded SESSION rather than scattered one-off reminders:
+  # every label_session_interval_minutes, fires a burst of quick
+  # tap-to-label prompts (Focus/Fatigue/Overload/Distracted buttons on
+  # Windows with BurntToast; a plain text reminder otherwise) roughly
+  # every label_session_prompt_interval_seconds, for
+  # label_session_duration_minutes, then goes quiet until the next
+  # scheduled session. A short concentrated burst you can either engage
+  # with or ignore is much lower-friction than needing standing
+  # vigilance to self-report at random times over days.
+  label_prompt_enabled: true
+  label_session_interval_minutes: 120
+  label_session_duration_minutes: 5
+  label_session_prompt_interval_seconds: 50
+  label_max_age_seconds: 120
+
+  # Retraining (src/model/retrain_from_real_data.py) is ALWAYS available
+  # manually via `cognitive-monitor retrain` regardless of this setting.
+  # auto_retrain_on_startup additionally checks, once at daemon startup
+  # (never mid-session, so a retrain never changes behavior under you
+  # mid-work), whether enough NEW real labels have accumulated since the
+  # last retrain and runs it automatically in the background if so.
+  # Default OFF: retraining changes what model file is live, which is
+  # meaningful enough that it defaults to something you explicitly ask
+  # for rather than something that silently happens.
+  auto_retrain_on_startup: false
+  auto_retrain_min_new_samples: 60
+
+  # ---- head-pose override for "distracted" ----
+  # The ML classifier has NO head-pose concept (see README's "About head
+  # pose" note) -- it only sees eyeball-within-socket movement, so bending
+  # your head down to a phone, or turning to look away, often reads as a
+  # steady low-dispersion "focus"-like signal instead of "distracted".
+  # This override runs ahead of the model: if your head hasn't been
+  # reasonably facing the screen for `head_pose_off_screen_ratio_threshold`
+  # of the last window, the state is forced to "distracted" directly,
+  # skipping the classifier for that window.
+  head_pose_override_enabled: true
+  head_pose_off_screen_ratio_threshold: 0.5   # fraction of frames off-screen to trigger
+  head_yaw_threshold_deg: 25.0                # DEVIATION from your calibrated baseline, not raw angle
+  head_pitch_threshold_deg: 18.0              # same — deviation, not absolute
+
+  # How many valid head-pose readings to collect at session start before
+  # the override activates at all (roughly frames / 15fps seconds). Fixes
+  # slight-movement false positives: the pose model isn't per-person
+  # calibrated, so "facing the screen normally" can read as a nonzero raw
+  # angle depending on your face/camera setup — thresholds are now judged
+  # against deviation from YOUR OWN measured neutral pose, not 0 degrees.
+  head_pose_calibration_frames: 30
+  # Rolling-median smoothing window (in frames) applied before threshold
+  # comparison, to dampen single-frame landmark-detection jitter that
+  # isn't real head movement.
+  head_pose_smoothing_window: 5
+
+  log_dir: "logs"
+  log_file: "state_history.csv"
+
+  # Opens a browser tab with this session's state breakdown, notifications
+  # sent, blocked-site attempts, and a few rule-based "changes to
+  # consider" the moment the daemon stops (Ctrl+C / stop command). Set
+  # false to disable and use `cognitive-monitor dashboard` manually instead.
+  open_dashboard_on_exit: true
+  dashboard_port: 5757
+
+  # Adaptive layer (Thompson Sampling bandit) — learns per (state, action)
+  # whether YOU actually want it to keep firing, from feedback you give via
+  # `cognitive-monitor feedback <event_id> up|down` (or later, notification
+  # buttons / the dashboard). See src/actions/bandit.py for the full design
+  # rationale. Sits BEHIND the static actions below — the actions in the
+  # `states:` section are still exactly what the system tries; the bandit
+  # only learns to fire them more or less often based on your responses.
+  bandit_db_file: "bandit.db"
+  bandit_cold_start_trials: 5   # fire unconditionally (static config) for an
+                                  # action's first N firings before the bandit
+                                  # is allowed to start gating it
+
+# -----------------------------------------------------------------------
+# Site blocking — STATE-INDEPENDENT, applies for the whole session
+# -----------------------------------------------------------------------
+# Unlike the per-state `block_domains` action below (which only fires once
+# `distracted` is confidently detected for several windows in a row), this
+# blocks the listed domains for the ENTIRE session the moment the daemon
+# starts, regardless of what state you're in — visiting one of these sites
+# is blocked whether you're "focused", "fatigued", or anything else.
+# `dim_on_attempt` pairs an aggressive brightness cut with every actual
+# visit attempt (not just a background dim) as an immediate deterrent, the
+# instant a blocked site is requested, not just for the whole block window.
+#
+# Do not also enable the per-state `block_domains` action below at the
+# same time — they share the same hosts-file mechanism, and the per-state
+# action's `duration_minutes` timer would prematurely unblock this
+# session-wide list when it expires. Use ONE or the other.
+site_blocking:
+  enabled: false          # flip to true to opt in
+  domains: []              # e.g. ["youtube.com", "reddit.com", "x.com"]
+  dim_on_attempt: true      # brightness cut the instant a blocked site is visited
+  dim_percent: 5            # cut TO this percent (5 = a ~95% reduction from full)
+  dim_duration_seconds: 4   # how long the cut lasts before restoring
+
+# -----------------------------------------------------------------------
+# Per-state actions
+# -----------------------------------------------------------------------
+# Each state lists an ordered set of actions. Available action types
+# (implemented in src/actions/):
+#   - "dnd_on" / "dnd_off"        : toggle OS-level Do Not Disturb / Focus
+#   - "notify"                     : show a local, gentle desktop notification
+#   - "block_domains"/"unblock_domains" : add/remove distracting domains
+#                                     from the local hosts file (opt-in,
+#                                     off by default — see distracted.block)
+#   - "brightness_step"            : nudge display brightness (fatigue: eye
+#                                     strain reduction via warmer/dimmer)
+#   - "run_command"                : arbitrary local shell command (off by
+#                                     default; you must opt in explicitly)
+
+states:
+
+  focus:
+    # Rationale: Gloria Mark's UC Irvine field studies found it takes ~23
+    # minutes to fully return to a task after an interruption, and that
+    # people typically complete ~2 other tasks before returning to the
+    # original one. The single highest-leverage UI change during a
+    # confirmed focus state is simply: stop interrupting. Deliberately NO
+    # alarm/sound here and no color filter — adding either would itself be
+    # the interruption this state exists to prevent. `with_tone` is
+    # intentionally omitted for the same reason.
+    actions:
+      - type: dnd_on
+      - type: taskbar_hide
+      - type: notify
+        title: "Focus detected"
+        message: "Do Not Disturb enabled. Notifications are held until you pause."
+        only_once_per_session: true
+
+  fatigue:
+    # Rationale: meta-analytic and lab evidence (Albulescu et al. 2022,
+    # PLOS ONE, k=22 studies; Dianita et al. 2024/2025) shows short
+    # microbreaks (20s-5min) measurably restore vigor/concentration and
+    # reduce fatigue symptoms, without materially hurting throughput.
+    # Screen brightness/contrast reduction also targets the eye-strain
+    # component (droopy EAR / high blink rate is the model's top fatigue
+    # signal per feature_importance.png) -- high_contrast makes text
+    # easier to read without straining further, on top of the dim.
+    actions:
+      - type: break_popup     # popup + a short tone, see notifications.show_break_popup
+        title: "Signs of fatigue"
+        message: "Consider a 2-5 min break — stand up, look away from the screen (20-20-20 rule)."
+      - type: brightness_step
+        delta: -10          # percent; reduces glare/eye strain
+        floor: 40            # never auto-dim below this
+      - type: high_contrast
+      - type: dnd_on          # also suppress notifications so a break isn't a new interruption
+
+  overload:
+    # Rationale: Cognitive Load Theory (Sweller) — working memory has
+    # limited capacity, and extraneous load (visual clutter, competing
+    # notifications, too many simultaneous streams of information)
+    # degrades performance on top of the task's own intrinsic load. The
+    # model's top overload driver is backspace/error rate + pupil
+    # diameter, consistent with elevated processing demand. The
+    # intervention is to strip extraneous load, not add more prompts:
+    # taskbar_hide removes the constant low-grade visual competition of
+    # pinned apps/tray icons, high_contrast reduces visual/legibility
+    # strain (standard OS accessibility feature, applied here for load
+    # reduction rather than vision impairment). with_tone: a silent toast
+    # is easy to miss when already overloaded with competing streams.
+    actions:
+      - type: dnd_on
+      - type: taskbar_hide
+      - type: high_contrast
+      - type: notify
+        title: "High cognitive load detected"
+        message: "Consider breaking the current task into smaller steps. Notifications paused, taskbar hidden."
+        only_once_per_session: true
+        with_tone: true
+
+  distracted:
+    # Rationale: same interruption-recovery research as `focus`, applied
+    # in reverse — distraction is already fragmenting attention, so the
+    # goal is to reduce further fragmentation (extra notifications) and
+    # optionally remove the specific triggers the user has pre-identified
+    # as their own distraction sources. The audible alarm is deliberately
+    # more attention-grabbing than a silent toast, since a scattered
+    # attention state is exactly when a quiet notification is easiest to
+    # miss or ignore. The grayscale color filter mirrors iOS/Android's
+    # built-in "reduce distraction" grayscale mode — a widely used
+    # digital-wellbeing heuristic (removing color reduces the visual
+    # reward of colorful, attention-grabbing apps/feeds), not a
+    # rigorously RCT-validated claim, but a reasonable low-cost default.
+    #
+    # NOTE on domain blocking: the block_domains action below only fires
+    # once THIS state is confidently detected, which is too narrow for
+    # "block this site no matter what state I'm in" — use the top-level
+    # `site_blocking:` section above for that instead, and leave this
+    # `enabled: false` (do not run both at once — see the note there).
+    actions:
+      - type: alarm
+        pattern: "triple_beep"
+      - type: notify
+        title: "Attention seems scattered"
+        message: "Gentle nudge back to your task. Notifications paused for a bit."
+      - type: dnd_on
+      - type: color_filter
+        filter_type: 0        # 0 = grayscale
+      - type: block_domains
+        enabled: false        # leave false — use top-level `site_blocking:` instead
+        domains: []            # e.g. ["reddit.com", "x.com", "youtube.com"]
+        duration_minutes: 20
+
+# When a state that had dnd_on stops qualifying (state changes away from
+# focus/fatigue/overload/distracted, or confidence drops), the daemon
+# automatically calls dnd_off and reverts brightness — see
+# src/actions/action_engine.py: `_maybe_revert()`.
+revert_on_state_change: true

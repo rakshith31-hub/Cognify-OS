@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cognitive-state-monitor"
+version = "0.1.0"
+description = "Real-time cognitive state monitor (webcam + mouse/keyboard) that adjusts notifications and UI to support focus."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "joblib",
+    "matplotlib",
+    "seaborn",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+camera = ["opencv-python", "mediapipe"]
+input = ["pynput"]
+windows-notify = ["win10toast"]
+full = ["opencv-python", "mediapipe", "pynput", "win10toast"]
+
+[project.scripts]
+cognitive-monitor = "cli:main"
+
+[tool.setuptools]
+py-modules = ["cli"]
+
+[tool.setuptools.packages.find]
+include = ["src*"]
